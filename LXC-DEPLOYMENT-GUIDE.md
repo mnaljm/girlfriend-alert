@@ -66,14 +66,19 @@ apt update && apt upgrade -y
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 apt install -y nodejs git
 
+# Alternative if the above doesn't work:
+# apt install -y nodejs npm git
+
+# If npm is still missing, install it separately:
+# apt install -y npm
+
 # Verify installation
 node --version
 npm --version
 
-# Create app user (security best practice)
-useradd -m -s /bin/bash appuser
-mkdir -p /home/appuser/app
-chown appuser:appuser /home/appuser/app
+# If npm command is still not found, try:
+# ln -s /usr/bin/nodejs /usr/bin/node (if needed)
+# apt install npm --fix-missing
 ```
 
 ### Step 3: Copy Your App to Container
@@ -146,6 +151,39 @@ After=network.target
 Type=simple
 User=appuser
 WorkingDirectory=/home/appuser/app/girlfriend-alert
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start service
+systemctl daemon-reload
+systemctl enable girlfriend-alert
+systemctl start girlfriend-alert
+
+# Check status
+systemctl status girlfriend-alert
+```
+
+#### Alternative: Running as Root (Not Recommended for Production)
+
+If you prefer to run as root (less secure but simpler):
+
+```bash
+# Create systemd service for root user
+cat > /etc/systemd/system/girlfriend-alert.service << EOF
+[Unit]
+Description=Girlfriend Alert App
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/girlfriend-alert
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=10

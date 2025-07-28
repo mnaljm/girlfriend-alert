@@ -42,23 +42,49 @@ function App() {
       alertsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [alerts]);
-
   const connectSocket = () => {
-    const newSocket = io('http://localhost:5000');
+    // Auto-detect the server URL for better compatibility
+    const getServerUrl = () => {
+      // If we're in production (built app), use the current host
+      if (process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost') {
+        return window.location.origin;
+      }
+      // For development, use localhost:5000
+      return 'http://localhost:5000';
+    };
+
+    const serverUrl = getServerUrl();
+    console.log('Connecting to server:', serverUrl);
+    
+    const newSocket = io(serverUrl);
     
     newSocket.on('connect', () => {
       setConnected(true);
       setSocket(newSocket);
+      console.log('Connected to server successfully');
       
       // Identify user
       newSocket.emit('identify', user);
       
       // Subscribe to push notifications
       subscribeToPushNotifications(newSocket);
+    });    newSocket.on('disconnect', () => {
+      setConnected(false);
+      console.log('Disconnected from server');
     });
 
-    newSocket.on('disconnect', () => {
+    newSocket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
       setConnected(false);
+    });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('Reconnected after', attemptNumber, 'attempts');
+      setConnected(true);
+    });
+
+    newSocket.on('reconnect_error', (error) => {
+      console.error('Reconnection error:', error);
     });
 
     newSocket.on('alert-received', (alertData) => {
